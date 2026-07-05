@@ -505,37 +505,40 @@ async function saveSettings(patch) {
 }
 
 /* =====================================================
-   AUTENTICACIÓN
+   AUTENTICACIÓN (BYPASS)
 ===================================================== */
 function showAuth(errMsg) {
-  $('authOverlay').classList.remove('hidden');
-  const e = $('authError');
-  if (errMsg) { e.textContent = errMsg; e.classList.remove('hidden'); }
-  else e.classList.add('hidden');
-  $('authInfo').classList.add('hidden');
+  // Login desactivado: no hacemos nada
+  console.log("Login bypass: El modal de autenticación está bloqueado.");
 }
-function hideAuth() { $('authOverlay').classList.add('hidden'); }
 
-async function onLogin(user) {
-  currentUser = user;
+function hideAuth() { 
+  $('authOverlay').classList.add('hidden'); 
+}
+
+async function onLogin() {
+  // Simulamos un usuario activo para evitar errores en otras funciones
+  currentUser = { email: 'Usuario Local' };
   hideAuth();
   setLoading(true);
   try {
     await dbLoadAll();
-    $('userBadge').textContent = user.email || 'Sesión activa';
+    $('userBadge').textContent = 'Sesión local activa';
     if (state.commbankBalance != null) $('cbInput').value = state.commbankBalance.toFixed(2);
     populateMonthYear();
     renderAll();
-    toast('Datos sincronizados desde la nube.');
   } catch (e) {
-    dbErr(e);
-    showAuth('No se pudieron cargar tus datos. ¿Ejecutaste el SQL de las tablas?');
-    currentUser = null;
+    console.error("Error al cargar datos:", e);
+    setLoading(false);
   } finally {
     setLoading(false);
   }
 }
 
+// Carga directa al iniciar la página
+document.addEventListener('DOMContentLoaded', async () => {
+  await onLogin();
+});
 async function doSignIn() {
   const email = $('authEmail').value.trim();
   const password = $('authPass').value;
