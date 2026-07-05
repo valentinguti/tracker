@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AU Ledger — Finanzas Personales Australia</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter','system-ui','sans-serif'],
+        mono: ['"JetBrains Mono"','monospace'],
+      }
+    }
+  }
+}
+</script>
+<style>
+  body{ background:#09090b; }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-track{ background:#18181b; }
+  ::-webkit-scrollbar-thumb{ background:#3f3f46; border-radius:4px; }
+  ::-webkit-scrollbar-thumb:hover{ background:#52525b; }
+  input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; }
+  input[type=number]{ -moz-appearance:textfield; }
+  .num{ font-family:'JetBrains Mono',monospace; font-variant-numeric: tabular-nums; }
+  .tab-active{ color:#34d399; border-color:#34d399; background:rgba(52,211,153,.06); }
+  select option{ background:#18181b; color:#e4e4e7; }
+  .fade-in{ animation: fadeIn .18s ease-out; }
+  @keyframes fadeIn{ from{ opacity:0; transform:translateY(4px);} to{ opacity:1; transform:none;} }
+  @media (prefers-reduced-motion: reduce){ .fade-in{ animation:none; } }
+  .dz-over{ border-color:#34d399 !important; background:rgba(52,211,153,.08) !important; }
+</style>
+</head>
+<body class="bg-zinc-950 text-zinc-200 font-sans min-h-screen antialiased">
+
+<!-- ============ TOP BAR ============ -->
+<header class="border-b border-zinc-800 bg-zinc-950/95 backdrop-blur sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3">
+    <div class="flex items-center gap-2.5 mr-auto">
+      <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+        <svg class="w-4.5 h-4.5 text-emerald-400" style="width:18px;height:18px" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-zinc-100 leading-none">AU Ledger</h1>
+        <p class="text-[11px] text-zinc-500 leading-none mt-1">Conciliación total con CommBank</p>
+      </div>
+    </div>
+
+    <!-- Reconciliation module -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5">
+        <span class="text-[11px] uppercase tracking-wide text-zinc-500 font-semibold whitespace-nowrap">Saldo CommBank</span>
+        <span class="text-zinc-500 text-sm">$</span>
+        <input id="cbInput" type="number" step="0.01" placeholder="0.00" class="num bg-transparent w-28 text-sm text-zinc-100 focus:outline-none placeholder-zinc-600" />
+        <button id="cbSave" class="text-[11px] font-semibold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-md px-2.5 py-1 transition-colors">Conciliar</button>
+      </div>
+      <div id="reconStatus" class="hidden sm:flex items-center gap-1.5 text-xs rounded-lg px-3 py-2 border"></div>
+
+      <!-- Maintenance dropdown -->
+      <div class="relative">
+        <button id="btnMaint" class="flex items-center gap-1.5 text-xs font-medium bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg px-3 py-2 transition-colors">
+          <svg style="width:14px;height:14px" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+          Mantenimiento
+        </button>
+        <div id="maintMenu" class="hidden absolute right-0 mt-1.5 w-56 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50">
+          <div id="userBadge" class="px-4 py-2 text-[11px] text-zinc-500 border-b border-zinc-800 truncate"></div>
+          <button id="btnExport" class="w-full text-left px-4 py-2.5 text-xs hover:bg-zinc-800 flex items-center gap-2 transition-colors">
+            <svg style="width:14px;height:14px" class="text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+            Exportar backup (JSON)
+          </button>
+          <button id="btnImportJson" class="w-full text-left px-4 py-2.5 text-xs hover:bg-zinc-800 flex items-center gap-2 transition-colors">
+            <svg style="width:14px;height:14px" class="text-sky-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+            Importar backup (JSON)
+          </button>
+          <button id="btnWipe" class="w-full text-left px-4 py-2.5 text-xs hover:bg-zinc-800 text-red-400 flex items-center gap-2 transition-colors border-t border-zinc-800">
+            <svg style="width:14px;height:14px" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+            Borrar todos los datos
+          </button>
+          <button id="btnSignOut" class="w-full text-left px-4 py-2.5 text-xs hover:bg-zinc-800 flex items-center gap-2 transition-colors border-t border-zinc-800">
+            <svg style="width:14px;height:14px" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg>
+            Cerrar sesión
+          </button>
+        </div>
+        <input id="importJsonFile" type="file" accept=".json,application/json" class="hidden" />
+      </div>
+    </div>
+  </div>
+  <div id="reconStatusMobile" class="sm:hidden px-4 pb-3"></div>
+</header>
+
+<!-- ============ TABS NAV ============ -->
+<nav class="max-w-7xl mx-auto px-4 sm:px-6 mt-5">
+  <div class="flex gap-1 overflow-x-auto border-b border-zinc-800 pb-px" id="tabsNav">
+    <button data-tab="setup" class="tab-btn whitespace-nowrap text-xs sm:text-sm font-medium px-4 py-2.5 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition-colors">Capital Inicial</button>
+    <button data-tab="diario" class="tab-btn whitespace-nowrap text-xs sm:text-sm font-medium px-4 py-2.5 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition-colors">Libro Diario</button>
+    <button data-tab="import" class="tab-btn whitespace-nowrap text-xs sm:text-sm font-medium px-4 py-2.5 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition-colors">Importar CSV CommBank</button>
+    <button data-tab="anual" class="tab-btn whitespace-nowrap text-xs sm:text-sm font-medium px-4 py-2.5 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition-colors">Compilado Anual &amp; Metas</button>
+  </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-20">
+
+<!-- ============ TAB 1: CAPITAL INICIAL ============ -->
+<section id="panel-setup" class="tab-panel fade-in space-y-6">
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <p class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Inversión total de viaje</p>
+      <p id="kpiInvTotal" class="num text-2xl font-bold text-zinc-100 mt-2">$0.00</p>
+      <p class="text-[11px] text-zinc-500 mt-1">Visas, vuelos, seguro, bond y setup</p>
+    </div>
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <p class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Fondos de respaldo traídos</p>
+      <p id="kpiCashBrought" class="num text-2xl font-bold text-zinc-100 mt-2">$0.00</p>
+      <p class="text-[11px] text-zinc-500 mt-1">Cash / ahorros con los que llegaste</p>
+    </div>
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <p class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Fondo remanente</p>
+      <p id="kpiCashLeft" class="num text-2xl font-bold text-emerald-400 mt-2">$0.00</p>
+      <p class="text-[11px] text-zinc-500 mt-1">Respaldo aún sin mover a la cuenta local</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Initial investment -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <h2 class="text-sm font-bold text-zinc-100">Inversión inicial de desembarco</h2>
+      <p class="text-xs text-zinc-500 mt-0.5 mb-4">Gastos fijos de llegada. No afectan la conciliación con CommBank.</p>
+      <form id="invForm" class="grid grid-cols-1 sm:grid-cols-[1fr_120px_140px_auto] gap-2 mb-4">
+        <input id="invConcept" required placeholder="Concepto (ej. Visa 417, Vuelo, OSHC…)" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+        <input id="invAmount" required type="number" step="0.01" min="0.01" placeholder="Monto AUD" class="num bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+        <input id="invDate" required type="date" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-emerald-500" />
+        <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm font-semibold rounded-lg px-4 py-2 transition-colors">Añadir</button>
+      </form>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
+            <th class="py-2 pr-3 font-semibold">Concepto</th><th class="py-2 pr-3 font-semibold">Fecha</th><th class="py-2 pr-3 font-semibold text-right">Monto</th><th class="py-2"></th>
+          </tr></thead>
+          <tbody id="invTable"></tbody>
+        </table>
+        <p id="invEmpty" class="text-xs text-zinc-600 py-4 text-center">Todavía no cargaste inversiones iniciales. Añadí la primera arriba.</p>
+      </div>
+    </div>
+
+    <!-- Backup cash control -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <h2 class="text-sm font-bold text-zinc-100">Control de cash de respaldo</h2>
+      <p class="text-xs text-zinc-500 mt-0.5 mb-4">Registrá cuánto trajiste y cada vez que muevas parte a tu cuenta local. Cada movimiento crea un ingreso "Fondos Traídos" en el Libro Diario para limpiar el rastro.</p>
+      <div class="flex items-end gap-2 mb-5">
+        <div class="flex-1">
+          <label class="text-[11px] uppercase tracking-wide text-zinc-500 font-semibold block mb-1.5">Total traído originalmente (AUD)</label>
+          <input id="cashBroughtInput" type="number" step="0.01" min="0" placeholder="0.00" class="num w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+        </div>
+        <button id="cashBroughtSave" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-sm font-semibold rounded-lg px-4 py-2 transition-colors">Guardar</button>
+      </div>
+      <h3 class="text-xs font-bold text-zinc-300 mb-2">Mover respaldo a la cuenta local</h3>
+      <form id="transferForm" class="grid grid-cols-1 sm:grid-cols-[120px_140px_1fr_auto] gap-2 mb-4">
+        <input id="trAmount" required type="number" step="0.01" min="0.01" placeholder="Monto AUD" class="num bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+        <input id="trDate" required type="date" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-emerald-500" />
+        <input id="trNote" placeholder="Nota (ej. depósito en CommBank)" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+        <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm font-semibold rounded-lg px-4 py-2 transition-colors">Mover</button>
+      </form>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
+            <th class="py-2 pr-3 font-semibold">Fecha</th><th class="py-2 pr-3 font-semibold">Nota</th><th class="py-2 pr-3 font-semibold text-right">Monto</th><th class="py-2"></th>
+          </tr></thead>
+          <tbody id="transferTable"></tbody>
+        </table>
+        <p id="transferEmpty" class="text-xs text-zinc-600 py-4 text-center">Sin movimientos de respaldo todavía.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TAB 2: LIBRO DIARIO ============ -->
+<section id="panel-diario" class="tab-panel fade-in space-y-6 hidden">
+  <div class="flex flex-wrap items-center gap-3">
+    <h2 class="text-sm font-bold text-zinc-100 mr-auto">Control mensual</h2>
+    <div class="flex items-center gap-2">
+      <select id="monthSel" class="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"></select>
+      <select id="yearSel" class="num bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"></select>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <p class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Ingresos</p>
+      <p id="kpiIncome" class="num text-xl sm:text-2xl font-bold text-emerald-400 mt-2">$0.00</p>
+    </div>
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <p class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Gastos</p>
+      <p id="kpiExpense" class="num text-xl sm:text-2xl font-bold text-red-400 mt-2">$0.00</p>
+    </div>
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <p class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Tasa de ahorro</p>
+      <p id="kpiRate" class="num text-xl sm:text-2xl font-bold text-zinc-100 mt-2">—</p>
+    </div>
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <p class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Balance del mes</p>
+      <p id="kpiBalance" class="num text-xl sm:text-2xl font-bold text-zinc-100 mt-2">$0.00</p>
+    </div>
+  </div>
+
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+    <h3 class="text-sm font-bold text-zinc-100 mb-3">Registro manual rápido</h3>
+    <form id="txForm" class="grid grid-cols-2 sm:grid-cols-[140px_130px_120px_1fr_180px_auto] gap-2">
+      <input id="txDate" required type="date" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-emerald-500" />
+      <select id="txType" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+        <option value="expense">Gasto (−)</option>
+        <option value="income">Ingreso (+)</option>
+      </select>
+      <input id="txAmount" required type="number" step="0.01" min="0.01" placeholder="Monto AUD" class="num bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+      <input id="txDesc" required placeholder="Descripción" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600 col-span-2 sm:col-span-1" />
+      <select id="txCategory" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"></select>
+      <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm font-semibold rounded-lg px-4 py-2 transition-colors">Añadir</button>
+    </form>
+  </div>
+
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-bold text-zinc-100">Transacciones del mes</h3>
+      <span id="txCount" class="text-[11px] text-zinc-500"></span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm min-w-[640px]">
+        <thead><tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
+          <th class="py-2 pr-3 font-semibold">Fecha</th>
+          <th class="py-2 pr-3 font-semibold">Descripción</th>
+          <th class="py-2 pr-3 font-semibold">Categoría</th>
+          <th class="py-2 pr-3 font-semibold text-right">Monto</th>
+          <th class="py-2 font-semibold text-right">Acciones</th>
+        </tr></thead>
+        <tbody id="txTable"></tbody>
+      </table>
+      <p id="txEmpty" class="text-xs text-zinc-600 py-6 text-center">No hay transacciones en este mes. Cargá una arriba o importá el CSV de CommBank.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TAB 3: IMPORTADOR CSV ============ -->
+<section id="panel-import" class="tab-panel fade-in space-y-6 hidden">
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+    <h2 class="text-sm font-bold text-zinc-100">Motor de importación CSV — CommBank / NetBank</h2>
+    <p class="text-xs text-zinc-500 mt-0.5 mb-4">Exportá tus transacciones desde NetBank en formato CSV y soltá el archivo acá. Formato esperado: <span class="num text-zinc-400">Date, Amount, Description, Balance</span> (con o sin encabezado). Monto negativo = gasto, positivo = ingreso.</p>
+    <div id="dropZone" class="border-2 border-dashed border-zinc-700 rounded-xl p-10 text-center cursor-pointer transition-colors hover:border-zinc-500">
+      <svg class="mx-auto text-zinc-600 mb-3" style="width:36px;height:36px" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" /></svg>
+      <p class="text-sm text-zinc-300 font-medium">Arrastrá el CSV acá, o hacé clic para elegirlo</p>
+      <p class="text-xs text-zinc-600 mt-1">Solo archivos .csv exportados de CommBank</p>
+      <input id="csvFileInput" type="file" accept=".csv,text/csv" class="hidden" />
+    </div>
+    <p id="csvError" class="hidden text-xs text-red-400 mt-3"></p>
+  </div>
+
+  <!-- Staging -->
+  <div id="stagingSection" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="mr-auto">
+        <h3 class="text-sm font-bold text-zinc-100">Pre-visualización (staging)</h3>
+        <p id="stagingSummary" class="text-xs text-zinc-500 mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <select id="bulkCat" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-500"></select>
+        <button id="bulkApply" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-semibold rounded-lg px-3 py-2 transition-colors">Aplicar a marcadas</button>
+      </div>
+    </div>
+    <div class="overflow-x-auto max-h-[480px] overflow-y-auto rounded-lg border border-zinc-800">
+      <table class="w-full text-sm min-w-[720px]">
+        <thead class="sticky top-0 bg-zinc-900 z-10"><tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
+          <th class="py-2.5 px-3 font-semibold"><input type="checkbox" id="checkAll" checked class="accent-emerald-500" /></th>
+          <th class="py-2.5 pr-3 font-semibold">Fecha</th>
+          <th class="py-2.5 pr-3 font-semibold">Descripción</th>
+          <th class="py-2.5 pr-3 font-semibold">Categoría</th>
+          <th class="py-2.5 pr-3 font-semibold text-right">Monto</th>
+          <th class="py-2.5 px-3 font-semibold">Estado</th>
+        </tr></thead>
+        <tbody id="stagingTable"></tbody>
+      </table>
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <p class="text-[11px] text-zinc-500">Desmarcá duplicados o transferencias internas para que no ensucien el saldo. Los posibles duplicados ya vienen desmarcados.</p>
+      <button id="btnConfirmImport" class="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm font-bold rounded-lg px-5 py-2.5 transition-colors">Procesar y confirmar importación</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TAB 4: ANUAL & METAS ============ -->
+<section id="panel-anual" class="tab-panel fade-in space-y-6 hidden">
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <h2 class="text-sm font-bold text-zinc-100 mr-auto">Cuadro de mando anual</h2>
+      <select id="annYearSel" class="num bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"></select>
+    </div>
+    <div class="overflow-x-auto rounded-lg border border-zinc-800">
+      <table class="w-full text-sm min-w-[680px]">
+        <thead><tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800 bg-zinc-950/50">
+          <th class="py-2.5 px-3 font-semibold">Mes</th>
+          <th class="py-2.5 pr-3 font-semibold text-right">Ingresos</th>
+          <th class="py-2.5 pr-3 font-semibold text-right">Gastos</th>
+          <th class="py-2.5 pr-3 font-semibold text-right">Balance</th>
+          <th class="py-2.5 px-3 font-semibold text-right">Ahorro acumulado</th>
+        </tr></thead>
+        <tbody id="annualTable"></tbody>
+        <tfoot id="annualFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+    <h2 class="text-sm font-bold text-zinc-100 mb-1">Financial Goals</h2>
+    <p class="text-xs text-zinc-500 mb-4">Metas de ahorro con progreso dinámico. Sumale fondos a mano cuando muevas plata al objetivo.</p>
+    <form id="goalForm" class="grid grid-cols-1 sm:grid-cols-[1fr_150px_auto] gap-2 mb-5">
+      <input id="goalName" required placeholder="Nombre de la meta (ej. Fondo de emergencia)" class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+      <input id="goalTarget" required type="number" step="0.01" min="1" placeholder="Objetivo AUD" class="num bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+      <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm font-semibold rounded-lg px-4 py-2 transition-colors">Crear meta</button>
+    </form>
+    <div id="goalsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <p id="goalsEmpty" class="text-xs text-zinc-600 py-4 text-center">Sin metas todavía. Creá la primera arriba.</p>
+  </div>
+</section>
+
+</main>
+
+
+<!-- ============ AUTH MODAL ============ -->
+<div id="authOverlay" class="fixed inset-0 z-[60] bg-zinc-950/95 backdrop-blur flex items-center justify-center p-4">
+  <div class="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 fade-in">
+    <div class="flex items-center gap-2.5 mb-5">
+      <div class="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+        <svg style="width:18px;height:18px" class="text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+      </div>
+      <div>
+        <h2 class="text-sm font-bold text-zinc-100 leading-none">AU Ledger — Acceso privado</h2>
+        <p class="text-[11px] text-zinc-500 mt-1 leading-none">Tus finanzas, solo con tu cuenta</p>
+      </div>
+    </div>
+    <div id="configWarning" class="hidden text-xs text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded-lg p-3 mb-4">
+      Falta configurar Supabase. Abrí el archivo HTML, pegá tu <b>SUPABASE_URL</b> y <b>SUPABASE_ANON_KEY</b> en las constantes del inicio del script, y ejecutá el SQL que está comentado al final del archivo en el SQL Editor de Supabase.
+    </div>
+    <div id="authFormWrap" class="space-y-3">
+      <input id="authEmail" type="email" autocomplete="email" placeholder="Email" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+      <input id="authPass" type="password" autocomplete="current-password" placeholder="Contraseña (mín. 6 caracteres)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 placeholder-zinc-600" />
+      <p id="authError" class="hidden text-xs text-red-400"></p>
+      <p id="authInfo" class="hidden text-xs text-emerald-400"></p>
+      <button id="btnSignIn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm font-bold rounded-lg px-4 py-2.5 transition-colors">Iniciar sesión</button>
+      <button id="btnSignUp" class="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-sm font-semibold rounded-lg px-4 py-2.5 transition-colors">Crear cuenta nueva</button>
+    </div>
+  </div>
+</div>
+<div id="loadingOverlay" class="hidden fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur flex flex-col items-center justify-center gap-3">
+  <svg class="animate-spin text-emerald-400" style="width:28px;height:28px" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path></svg>
+  <p class="text-xs text-zinc-400">Sincronizando con Supabase…</p>
+</div>
+
+<div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-700 text-sm text-zinc-100 rounded-lg px-4 py-2.5 shadow-xl z-50"></div>
+
+
+
+<script>
+'use strict';
+/* =====================================================
+   AU LEDGER v2 — Supabase Cloud Edition
+   1) Pegá tus credenciales acá abajo.
+   2) Ejecutá el SQL comentado al final del archivo
+      en Supabase → SQL Editor → Run.
+===================================================== */
+const SUPABASE_URL = 'https://ppkhogmietdshclyjynl.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwa2hvZ21pZXRkc2hjbHlqeW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNDI3NDUsImV4cCI6MjA5ODgxODc0NX0.fwOSe-d9vM8qhWladfXG4dF-um37Z_v_z2OrWjdbVBQ';
+
+// OJO: no se puede hacer `const supabase = supabase.createClient(...)` —
+// la constante pisa el objeto global del CDN antes de inicializarse (TDZ).
+let sb = null;          // cliente de Supabase
+let currentUser = null; // usuario autenticado
+
+const CATEGORIES = {
+  expense: [
+    { group: 'Gastos Fijos', items: ['Rent', 'Utilities (Luz/Gas/Internet)', 'Mobile/Phone', 'Transport & Fuel'] },
+    { group: 'Estilo de Vida', items: ['Groceries', 'Eating Out & Coffee', 'Entertainment/Leisure', 'Gym & Health', 'Motorcycle/Vehicle Maintenance'] },
+    { group: 'Otros', items: ['Miscellaneous', 'Tax & Government'] },
+  ],
+  income: [
+    { group: 'Ingresos', items: ['Salary/Wages', 'Fondos Traídos (Respaldo)', 'Other Income'] },
+  ]
+};
+const ALL_EXPENSE_CATS = CATEGORIES.expense.flatMap(g => g.items);
+const ALL_INCOME_CATS  = CATEGORIES.income.flatMap(g => g.items);
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+const defaultState = () => ({
+  transactions: [], investments: [], cashBrought: 0,
+  transfers: [], goals: [], commbankBalance: null,
+});
+let state = defaultState(); // caché local en memoria; la fuente de verdad es Supabase
+let editingTxId = null;
+let staging = [];
+
+/* ---------- Utilidades ---------- */
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+function uuid() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0'));
+  return `${h.slice(0,4).join('')}-${h.slice(4,6).join('')}-${h.slice(6,8).join('')}-${h.slice(8,10).join('')}-${h.slice(10).join('')}`;
+}
+const fmtAUD = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
+const money = n => fmtAUD.format(Number.isFinite(n) ? n : 0);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function fmtDate(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || '—';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function parseAmount(raw) {
+  if (raw == null) return NaN;
+  const cleaned = String(raw).replace(/["'$,\s+]/g, '').replace(/\u00A0/g, '');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : NaN;
+}
+function normDesc(s) { return String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+let toastTimer = null;
+function toast(msg, ok = true) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = `fixed bottom-5 left-1/2 -translate-x-1/2 border text-sm rounded-lg px-4 py-2.5 shadow-xl z-50 ${ok ? 'bg-zinc-800 border-emerald-500/40 text-zinc-100' : 'bg-zinc-800 border-red-500/50 text-red-200'}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 3600);
+}
+function dbErr(e) {
+  console.error('Supabase:', e);
+  toast('Error de Supabase: ' + (e && e.message ? e.message : 'desconocido'), false);
+}
+function categoryOptionsHTML(type, selected) {
+  const groups = CATEGORIES[type] || [];
+  return groups.map(g =>
+    `<optgroup label="${esc(g.group)}">` +
+    g.items.map(c => `<option value="${esc(c)}" ${c === selected ? 'selected' : ''}>${esc(c)}</option>`).join('') +
+    `</optgroup>`
+  ).join('');
+}
+function setLoading(on) { $('loadingOverlay').classList.toggle('hidden', !on); }
+
+/* =====================================================
+   CAPA DE DATOS — SUPABASE (async CRUD)
+===================================================== */
+function initSupabase() {
+  if (SUPABASE_URL.startsWith('TU_') || SUPABASE_ANON_KEY.startsWith('TU_')) return false;
+  if (!window.supabase || typeof window.supabase.createClient !== 'function') return false;
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return true;
+}
+
+async function dbLoadAll() {
+  const [tx, inv, goals, trs, settings] = await Promise.all([
+    sb.from('transactions').select('*'),
+    sb.from('initial_investment').select('*'),
+    sb.from('saving_goals').select('*'),
+    sb.from('backup_transfers').select('*'),
+    sb.from('app_settings').select('*').maybeSingle(),
+  ]);
+  const bad = [tx, inv, goals, trs, settings].find(r => r.error);
+  if (bad) throw bad.error;
+
+  state.transactions = (tx.data || []).map(r => ({
+    id: r.id, date: r.date, type: r.type, amount: +r.amount,
+    description: r.description, category: r.category,
+    source: r.source || 'manual', createdAt: Date.parse(r.created_at) || 0,
+  }));
+  state.investments = (inv.data || []).map(r => ({ id: r.id, concept: r.concept, amount: +r.amount, date: r.date }));
+  state.goals = (goals.data || []).map(r => ({ id: r.id, name: r.name, target: +r.target, saved: +r.saved }));
+  state.transfers = (trs.data || []).map(r => ({ id: r.id, date: r.date, amount: +r.amount, note: r.note || '', txId: r.tx_id }));
+  state.cashBrought = settings.data ? +(settings.data.cash_brought || 0) : 0;
+  state.commbankBalance = settings.data && settings.data.commbank_balance != null ? +settings.data.commbank_balance : null;
+}
+
+async function dbInsert(table, rows) {
+  const { error } = await sb.from(table).insert(rows);
+  if (error) throw error;
+}
+async function dbUpdate(table, id, patch) {
+  const { error } = await sb.from(table).update(patch).eq('id', id);
+  if (error) throw error;
+}
+async function dbDelete(table, col, val) {
+  const { error } = await sb.from(table).delete().eq(col, val);
+  if (error) throw error;
+}
+async function saveSettings(patch) {
+  const row = Object.assign({ user_id: currentUser.id, updated_at: new Date().toISOString() }, patch);
+  const { error } = await sb.from('app_settings').upsert(row, { onConflict: 'user_id' });
+  if (error) throw error;
+}
+
+/* =====================================================
+   AUTENTICACIÓN
+===================================================== */
+function showAuth(errMsg) {
+  $('authOverlay').classList.remove('hidden');
+  const e = $('authError');
+  if (errMsg) { e.textContent = errMsg; e.classList.remove('hidden'); }
+  else e.classList.add('hidden');
+  $('authInfo').classList.add('hidden');
+}
+function hideAuth() { $('authOverlay').classList.add('hidden'); }
+
+async function onLogin(user) {
+  currentUser = user;
+  hideAuth();
+  setLoading(true);
+  try {
+    await dbLoadAll();
+    $('userBadge').textContent = user.email || 'Sesión activa';
+    if (state.commbankBalance != null) $('cbInput').value = state.commbankBalance.toFixed(2);
+    populateMonthYear();
+    renderAll();
+    toast('Datos sincronizados desde la nube.');
+  } catch (e) {
+    dbErr(e);
+    showAuth('No se pudieron cargar tus datos. ¿Ejecutaste el SQL de las tablas?');
+    currentUser = null;
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function doSignIn() {
+  const email = $('authEmail').value.trim();
+  const password = $('authPass').value;
+  if (!email || password.length < 6) { showAuth('Ingresá email y una contraseña de al menos 6 caracteres.'); return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { showAuth(error.message); return; }
+  await onLogin(data.user);
+}
+async function doSignUp() {
+  const email = $('authEmail').value.trim();
+  const password = $('authPass').value;
+  if (!email || password.length < 6) { showAuth('Ingresá email y una contraseña de al menos 6 caracteres.'); return; }
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) { showAuth(error.message); return; }
+  if (data.session && data.user) { await onLogin(data.user); return; }
+  $('authError').classList.add('hidden');
+  const info = $('authInfo');
+  info.textContent = 'Cuenta creada. Revisá tu email para confirmar y después iniciá sesión.';
+  info.classList.remove('hidden');
+}
+async function doSignOut() {
+  try { await sb.auth.signOut(); } catch (e) { /* la sesión local igual se limpia */ }
+  currentUser = null;
+  state = defaultState();
+  staging = [];
+  $('stagingSection').classList.add('hidden');
+  $('cbInput').value = '';
+  $('userBadge').textContent = '';
+  renderAll();
+  showAuth();
+}
+
+/* =====================================================
+   CONCILIACIÓN
+===================================================== */
+function appBalance() {
+  return state.transactions.reduce((acc, t) => acc + (t.type === 'income' ? t.amount : -t.amount), 0);
+}
+function renderRecon() {
+  const el = $('reconStatus');
+  const elM = $('reconStatusMobile');
+  const build = (target, compact) => {
+    if (state.commbankBalance == null) {
+      target.innerHTML = `<span class="text-zinc-500">Ingresá tu saldo real de CommBank para conciliar</span>`;
+      target.className = (compact ? 'flex' : 'hidden sm:flex') + ' items-center gap-1.5 text-xs rounded-lg px-3 py-2 border border-zinc-800 bg-zinc-900';
+      return;
+    }
+    const diff = +(state.commbankBalance - appBalance()).toFixed(2);
+    if (Math.abs(diff) < 0.005) {
+      target.innerHTML = `<svg style="width:14px;height:14px" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg><span class="font-semibold">Tu saldo cuadra perfectamente</span>`;
+      target.className = (compact ? 'flex' : 'hidden sm:flex') + ' items-center gap-1.5 text-xs rounded-lg px-3 py-2 border border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    } else {
+      target.innerHTML = `<svg style="width:14px;height:14px" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg><span>Tenés un desfase de <b class="num">${money(Math.abs(diff))}</b> ${diff > 0 ? 'a favor del banco' : 'a favor de la app'} (revisá transacciones pendientes o efectivo omitido)</span>`;
+      target.className = (compact ? 'flex' : 'hidden sm:flex') + ' items-center gap-1.5 text-xs rounded-lg px-3 py-2 border border-amber-500/40 bg-amber-500/10 text-amber-300';
+    }
+  };
+  build(el, false);
+  build(elM, true);
+}
+
+/* =====================================================
+   TAB 1 — CAPITAL INICIAL
+===================================================== */
+function renderSetup() {
+  const invTotal = state.investments.reduce((a, i) => a + i.amount, 0);
+  const transferred = state.transfers.reduce((a, t) => a + t.amount, 0);
+  $('kpiInvTotal').textContent = money(invTotal);
+  $('kpiCashBrought').textContent = money(state.cashBrought);
+  const left = state.cashBrought - transferred;
+  const kLeft = $('kpiCashLeft');
+  kLeft.textContent = money(left);
+  kLeft.className = `num text-2xl font-bold mt-2 ${left < 0 ? 'text-red-400' : 'text-emerald-400'}`;
+  if ($('cashBroughtInput') !== document.activeElement) {
+    $('cashBroughtInput').value = state.cashBrought ? state.cashBrought.toFixed(2) : '';
+  }
+  const sortedInv = [...state.investments].sort((a, b) => a.date.localeCompare(b.date));
+  $('invTable').innerHTML = sortedInv.map(i => `
+    <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/30 transition-colors">
+      <td class="py-2.5 pr-3 text-zinc-200">${esc(i.concept)}</td>
+      <td class="py-2.5 pr-3 num text-zinc-400 text-xs">${fmtDate(i.date)}</td>
+      <td class="py-2.5 pr-3 num text-right text-zinc-100">${money(i.amount)}</td>
+      <td class="py-2 text-right"><button data-del-inv="${i.id}" class="text-zinc-500 hover:text-red-400 text-xs transition-colors" title="Eliminar">✕</button></td>
+    </tr>`).join('');
+  $('invEmpty').classList.toggle('hidden', sortedInv.length > 0);
+
+  const sortedTr = [...state.transfers].sort((a, b) => a.date.localeCompare(b.date));
+  $('transferTable').innerHTML = sortedTr.map(t => `
+    <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/30 transition-colors">
+      <td class="py-2.5 pr-3 num text-zinc-400 text-xs">${fmtDate(t.date)}</td>
+      <td class="py-2.5 pr-3 text-zinc-300">${esc(t.note || '—')}</td>
+      <td class="py-2.5 pr-3 num text-right text-emerald-400">${money(t.amount)}</td>
+      <td class="py-2 text-right"><button data-del-tr="${t.id}" class="text-zinc-500 hover:text-red-400 text-xs transition-colors" title="Eliminar (también quita el ingreso vinculado)">✕</button></td>
+    </tr>`).join('');
+  $('transferEmpty').classList.toggle('hidden', sortedTr.length > 0);
+}
+
+/* =====================================================
+   TAB 2 — LIBRO DIARIO
+===================================================== */
+function populateMonthYear() {
+  const now = new Date();
+  const prevMonth = $('monthSel').value;
+  const selMonth = prevMonth === '' ? now.getMonth() : +prevMonth;
+  $('monthSel').innerHTML = MONTHS.map((m, i) => `<option value="${i}" ${i === selMonth ? 'selected' : ''}>${m}</option>`).join('');
+  const years = new Set([now.getFullYear()]);
+  state.transactions.forEach(t => years.add(+t.date.slice(0, 4)));
+  const arr = [...years].sort((a, b) => b - a);
+  const currentYearSel = $('yearSel').value;
+  $('yearSel').innerHTML = arr.map(y => `<option value="${y}">${y}</option>`).join('');
+  if (arr.includes(+currentYearSel)) $('yearSel').value = currentYearSel;
+  const currentAnn = $('annYearSel').value;
+  $('annYearSel').innerHTML = arr.map(y => `<option value="${y}">${y}</option>`).join('');
+  if (arr.includes(+currentAnn)) $('annYearSel').value = currentAnn;
+}
+
+function monthTx() {
+  const m = +$('monthSel').value, y = +$('yearSel').value;
+  return state.transactions.filter(t => {
+    const [ty, tm] = t.date.split('-').map(Number);
+    return ty === y && tm - 1 === m;
+  }).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+function renderDiario() {
+  const txs = monthTx();
+  const inc = txs.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
+  const exp = txs.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
+  $('kpiIncome').textContent = '+' + money(inc);
+  $('kpiExpense').textContent = '−' + money(exp);
+  const bal = inc - exp;
+  const kb = $('kpiBalance');
+  kb.textContent = money(bal);
+  kb.className = `num text-xl sm:text-2xl font-bold mt-2 ${bal >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+  $('kpiRate').textContent = inc > 0 ? ((bal / inc) * 100).toFixed(1) + '%' : '—';
+  $('txCount').textContent = txs.length ? `${txs.length} transacción${txs.length === 1 ? '' : 'es'}` : '';
+
+  $('txTable').innerHTML = txs.map(t => {
+    if (t.id === editingTxId) {
+      return `
+      <tr class="border-b border-zinc-800/60 bg-zinc-800/40" data-edit-row="${t.id}">
+        <td class="py-2 pr-3"><input type="date" class="edit-date bg-zinc-950 border border-zinc-700 rounded-md px-2 py-1.5 text-xs" value="${t.date}"></td>
+        <td class="py-2 pr-3"><input class="edit-desc w-full bg-zinc-950 border border-zinc-700 rounded-md px-2 py-1.5 text-xs" value="${esc(t.description)}"></td>
+        <td class="py-2 pr-3"><select class="edit-cat bg-zinc-950 border border-zinc-700 rounded-md px-2 py-1.5 text-xs">${categoryOptionsHTML(t.type, t.category)}</select></td>
+        <td class="py-2 pr-3 text-right"><input type="number" step="0.01" min="0.01" class="edit-amount num w-24 bg-zinc-950 border border-zinc-700 rounded-md px-2 py-1.5 text-xs text-right" value="${t.amount.toFixed(2)}"></td>
+        <td class="py-2 text-right whitespace-nowrap">
+          <button data-save-tx="${t.id}" class="text-emerald-400 hover:text-emerald-300 text-xs font-semibold mr-2 transition-colors">Guardar</button>
+          <button data-cancel-tx="${t.id}" class="text-zinc-500 hover:text-zinc-300 text-xs transition-colors">Cancelar</button>
+        </td>
+      </tr>`;
+    }
+    const isInc = t.type === 'income';
+    return `
+    <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/30 transition-colors">
+      <td class="py-2.5 pr-3 num text-zinc-400 text-xs whitespace-nowrap">${fmtDate(t.date)}</td>
+      <td class="py-2.5 pr-3 text-zinc-200">${esc(t.description)}${t.source === 'csv' ? ' <span class="text-[10px] text-zinc-600 border border-zinc-700 rounded px-1 py-0.5 ml-1 align-middle">CSV</span>' : ''}</td>
+      <td class="py-2.5 pr-3"><span class="text-xs text-zinc-400 bg-zinc-800 border border-zinc-700/60 rounded-full px-2 py-0.5">${esc(t.category)}</span></td>
+      <td class="py-2.5 pr-3 num text-right font-medium ${isInc ? 'text-emerald-400' : 'text-red-400'}">${isInc ? '+' : '−'}${money(t.amount)}</td>
+      <td class="py-2 text-right whitespace-nowrap">
+        <button data-edit-tx="${t.id}" class="text-zinc-500 hover:text-emerald-400 text-xs mr-2 transition-colors">Editar</button>
+        <button data-del-tx="${t.id}" class="text-zinc-500 hover:text-red-400 text-xs transition-colors">Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
+  $('txEmpty').classList.toggle('hidden', txs.length > 0);
+}
+
+function refreshTxCategorySelect() {
+  const type = $('txType').value;
+  $('txCategory').innerHTML = categoryOptionsHTML(type, null);
+}
+
+/* =====================================================
+   TAB 3 — IMPORTADOR CSV COMMBANK
+===================================================== */
+function parseCSVLine(line) {
+  const out = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = false;
+      } else cur += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ',') { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map(s => s.trim());
+}
+
+function parseCBDate(raw) {
+  const s = String(raw).trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return null;
+}
+
+const AUTO_CAT_RULES = [
+  { re: /woolworths|coles|aldi|iga\b|foodland|drakes/i, cat: 'Groceries' },
+  { re: /\bbp\b|shell|caltex|ampol|puma energy|united petrol|7-eleven|mobil/i, cat: 'Transport & Fuel' },
+  { re: /uber(?! *eats)|didi|bus|translink|transperth|metro card/i, cat: 'Transport & Fuel' },
+  { re: /telstra|optus|vodafone|amaysim|boost|belong|aldimobile/i, cat: 'Mobile/Phone' },
+  { re: /rent|bond|real estate|ray white|lj hooker/i, cat: 'Rent' },
+  { re: /jacana|power ?water|origin energy|agl|energy ?australia|internet|nbn/i, cat: 'Utilities (Luz/Gas/Internet)' },
+  { re: /mcdonald|kfc|hungry jack|subway|domino|pizza|cafe|coffee|bakery|uber *eats|menulog|doordash|restaurant|noodle|sushi|kebab/i, cat: 'Eating Out & Coffee' },
+  { re: /gym|anytime fitness|snap fitness|jetts|chemist|pharmacy|medicare|doctor|dental/i, cat: 'Gym & Health' },
+  { re: /motorcycle|honda|mvr|rego|registration|nrma|racq|aamit?|mechanic|tyre|supercheap|repco/i, cat: 'Motorcycle/Vehicle Maintenance' },
+  { re: /cinema|netflix|spotify|steam|event|hoyts|bar\b|pub\b|bws|liquorland|dan murphy/i, cat: 'Entertainment/Leisure' },
+  { re: /\bato\b|tax|centrelink|fine|infringement|licence|license/i, cat: 'Tax & Government' },
+];
+const INCOME_RULES = [
+  { re: /salary|wage|payroll|pay\b|beam|accor|mantra|hays/i, cat: 'Salary/Wages' },
+];
+const INTERNAL_RE = /transfer to (?:netbank saver|commbank|savings)|commbank app transfer|netbank transfer to/i;
+
+function autoCategory(desc, type) {
+  const rules = type === 'income' ? INCOME_RULES : AUTO_CAT_RULES;
+  for (const r of rules) if (r.re.test(desc)) return r.cat;
+  return type === 'income' ? 'Other Income' : 'Miscellaneous';
+}
+
+function handleCSVFile(file) {
+  const err = $('csvError');
+  err.classList.add('hidden');
+  if (!file) return;
+  if (!/\.csv$/i.test(file.name) && file.type !== 'text/csv') {
+    err.textContent = 'El archivo no es un CSV. Exportalo desde NetBank en formato CSV.';
+    err.classList.remove('hidden');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try { buildStaging(String(e.target.result)); }
+    catch (ex) {
+      err.textContent = 'No se pudo procesar el archivo: ' + ex.message;
+      err.classList.remove('hidden');
+    }
+  };
+  reader.onerror = () => {
+    err.textContent = 'Error de lectura del archivo.';
+    err.classList.remove('hidden');
+  };
+  reader.readAsText(file);
+}
+
+function buildStaging(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (!lines.length) throw new Error('el archivo está vacío.');
+
+  let start = 0;
+  let map = { date: 0, amount: 1, desc: 2 };
+  const first = parseCSVLine(lines[0]).map(c => c.toLowerCase());
+  if (first.some(c => /date|amount|description|balance/.test(c))) {
+    start = 1;
+    const idx = name => first.findIndex(c => c.includes(name));
+    map = {
+      date:  Math.max(idx('date'), 0),
+      amount: idx('amount') >= 0 ? idx('amount') : 1,
+      desc:  idx('desc') >= 0 ? idx('desc') : 2,
+    };
+  }
+
+  const existing = new Set(state.transactions.map(t => `${t.date}|${t.amount.toFixed(2)}|${t.type}|${normDesc(t.description)}`));
+  staging = [];
+  let skipped = 0;
+
+  for (let i = start; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 3) { skipped++; continue; }
+    const date = parseCBDate(cols[map.date]);
+    const amt = parseAmount(cols[map.amount]);
+    const desc = (cols[map.desc] || '').trim();
+    if (!date || !Number.isFinite(amt) || amt === 0 || !desc) { skipped++; continue; }
+
+    const type = amt < 0 ? 'expense' : 'income';
+    const amount = +Math.abs(amt).toFixed(2);
+    const key = `${date}|${amount.toFixed(2)}|${type}|${normDesc(desc)}`;
+    const isDup = existing.has(key);
+    const isInternal = INTERNAL_RE.test(desc);
+
+    staging.push({
+      sid: uid(),
+      date, type, amount,
+      description: desc,
+      category: autoCategory(desc, type),
+      include: !isDup && !isInternal,
+      flag: isDup ? 'dup' : (isInternal ? 'internal' : null),
+    });
+  }
+
+  if (!staging.length) throw new Error('no se detectó ninguna fila válida (Date, Amount, Description).');
+  staging.sort((a, b) => a.date.localeCompare(b.date));
+  renderStaging(skipped);
+  $('stagingSection').classList.remove('hidden');
+  $('stagingSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderStaging(skipped = 0) {
+  const dups = staging.filter(r => r.flag === 'dup').length;
+  const internals = staging.filter(r => r.flag === 'internal').length;
+  const checked = staging.filter(r => r.include).length;
+  $('stagingSummary').textContent =
+    `${staging.length} registros detectados · ${checked} marcados para importar` +
+    (dups ? ` · ${dups} posibles duplicados` : '') +
+    (internals ? ` · ${internals} transferencias internas` : '') +
+    (skipped ? ` · ${skipped} filas ignoradas por formato` : '');
+
+  $('stagingTable').innerHTML = staging.map(r => `
+    <tr class="border-b border-zinc-800/60 ${r.include ? '' : 'opacity-45'} hover:bg-zinc-800/30 transition-colors">
+      <td class="py-2 px-3"><input type="checkbox" data-stg-check="${r.sid}" ${r.include ? 'checked' : ''} class="accent-emerald-500"></td>
+      <td class="py-2 pr-3 num text-zinc-400 text-xs whitespace-nowrap">${fmtDate(r.date)}</td>
+      <td class="py-2 pr-3 text-zinc-200 max-w-[280px] truncate" title="${esc(r.description)}">${esc(r.description)}</td>
+      <td class="py-2 pr-3"><select data-stg-cat="${r.sid}" class="bg-zinc-950 border border-zinc-700 rounded-md px-2 py-1 text-xs focus:outline-none focus:border-emerald-500">${categoryOptionsHTML(r.type, r.category)}</select></td>
+      <td class="py-2 pr-3 num text-right ${r.type === 'income' ? 'text-emerald-400' : 'text-red-400'}">${r.type === 'income' ? '+' : '−'}${money(r.amount)}</td>
+      <td class="py-2 px-3 text-[10px]">
+        ${r.flag === 'dup' ? '<span class="text-amber-400 border border-amber-500/40 bg-amber-500/10 rounded px-1.5 py-0.5">Posible duplicado</span>' :
+          r.flag === 'internal' ? '<span class="text-sky-400 border border-sky-500/40 bg-sky-500/10 rounded px-1.5 py-0.5">Transferencia interna</span>' :
+          '<span class="text-zinc-600">Nuevo</span>'}
+      </td>
+    </tr>`).join('');
+
+  $('bulkCat').innerHTML =
+    `<option value="">— Elegir categoría masiva —</option>` +
+    `<optgroup label="Gastos">${ALL_EXPENSE_CATS.map(c => `<option>${esc(c)}</option>`).join('')}</optgroup>` +
+    `<optgroup label="Ingresos">${ALL_INCOME_CATS.map(c => `<option>${esc(c)}</option>`).join('')}</optgroup>`;
+  $('checkAll').checked = staging.every(r => r.include);
+}
+
+async function confirmImport() {
+  const rows = staging.filter(r => r.include);
+  if (!rows.length) { toast('No hay filas marcadas para importar.', false); return; }
+  const btn = $('btnConfirmImport');
+  btn.disabled = true;
+  btn.textContent = 'Subiendo a Supabase…';
+  const now = Date.now();
+  const payload = rows.map(r => ({
+    id: uuid(), date: r.date, type: r.type, amount: r.amount,
+    description: r.description, category: r.category, source: 'csv',
+  }));
+  try {
+    await dbInsert('transactions', payload); // subida masiva en un solo .insert()
+    payload.forEach((p, i) => state.transactions.push({ ...p, createdAt: now + i }));
+    staging = [];
+    $('stagingSection').classList.add('hidden');
+    $('csvFileInput').value = '';
+    populateMonthYear();
+    renderAll();
+    toast(`${payload.length} transacciones importadas y guardadas en la nube.`);
+  } catch (e) {
+    dbErr(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Procesar y confirmar importación';
+  }
+}
+
+/* =====================================================
+   TAB 4 — ANUAL & METAS
+===================================================== */
+function renderAnual() {
+  const y = +($('annYearSel').value || new Date().getFullYear());
+  let cum = 0;
+  let totInc = 0, totExp = 0;
+  const rows = MONTHS.map((name, m) => {
+    const txs = state.transactions.filter(t => {
+      const [ty, tm] = t.date.split('-').map(Number);
+      return ty === y && tm - 1 === m;
+    });
+    const inc = txs.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
+    const exp = txs.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
+    const bal = inc - exp;
+    cum += bal;
+    totInc += inc; totExp += exp;
+    const empty = !txs.length;
+    return `
+    <tr class="border-b border-zinc-800/60 ${empty ? 'text-zinc-600' : ''} hover:bg-zinc-800/30 transition-colors">
+      <td class="py-2.5 px-3 ${empty ? '' : 'text-zinc-200'} font-medium">${name}</td>
+      <td class="py-2.5 pr-3 num text-right ${empty ? '' : 'text-emerald-400'}">${empty ? '—' : money(inc)}</td>
+      <td class="py-2.5 pr-3 num text-right ${empty ? '' : 'text-red-400'}">${empty ? '—' : money(exp)}</td>
+      <td class="py-2.5 pr-3 num text-right ${empty ? '' : (bal >= 0 ? 'text-zinc-100' : 'text-red-400')}">${empty ? '—' : money(bal)}</td>
+      <td class="py-2.5 px-3 num text-right ${cum >= 0 ? 'text-emerald-300' : 'text-red-400'}">${money(cum)}</td>
+    </tr>`;
+  }).join('');
+  $('annualTable').innerHTML = rows;
+  $('annualFoot').innerHTML = `
+    <tr class="bg-zinc-950/60 border-t-2 border-zinc-700">
+      <td class="py-3 px-3 font-bold text-zinc-100">Total ${y}</td>
+      <td class="py-3 pr-3 num text-right font-bold text-emerald-400">${money(totInc)}</td>
+      <td class="py-3 pr-3 num text-right font-bold text-red-400">${money(totExp)}</td>
+      <td class="py-3 pr-3 num text-right font-bold ${totInc - totExp >= 0 ? 'text-zinc-100' : 'text-red-400'}">${money(totInc - totExp)}</td>
+      <td class="py-3 px-3 num text-right font-bold text-emerald-300">${money(cum)}</td>
+    </tr>`;
+
+  $('goalsGrid').innerHTML = state.goals.map(g => {
+    const pct = Math.min(100, g.target > 0 ? (g.saved / g.target) * 100 : 0);
+    const done = pct >= 100;
+    return `
+    <div class="bg-zinc-950 border ${done ? 'border-emerald-500/50' : 'border-zinc-800'} rounded-xl p-4">
+      <div class="flex items-start justify-between gap-2">
+        <p class="text-sm font-semibold text-zinc-100">${esc(g.name)}</p>
+        <button data-del-goal="${g.id}" class="text-zinc-600 hover:text-red-400 text-xs transition-colors" title="Eliminar meta">✕</button>
+      </div>
+      <p class="num text-xs text-zinc-400 mt-1">${money(g.saved)} / ${money(g.target)}</p>
+      <div class="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
+        <div class="h-full ${done ? 'bg-emerald-400' : 'bg-emerald-500'} rounded-full transition-all" style="width:${pct.toFixed(1)}%"></div>
+      </div>
+      <div class="flex items-center justify-between mt-2">
+        <span class="num text-[11px] ${done ? 'text-emerald-400 font-bold' : 'text-zinc-500'}">${done ? '¡Meta cumplida!' : pct.toFixed(1) + '%'}</span>
+        <div class="flex items-center gap-1.5">
+          <input data-goal-add-input="${g.id}" type="number" step="0.01" min="0.01" placeholder="+ AUD" class="num w-20 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 text-[11px] focus:outline-none focus:border-emerald-500 placeholder-zinc-600">
+          <button data-goal-add="${g.id}" class="text-[11px] font-semibold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md px-2 py-1 transition-colors">Sumar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  $('goalsEmpty').classList.toggle('hidden', state.goals.length > 0);
+}
+
+/* =====================================================
+   BACKUP JSON (export local + import masivo a la nube)
+===================================================== */
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({ app: 'au-ledger', version: 2, exportedAt: new Date().toISOString(), state }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `au-ledger-backup-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('Backup exportado.');
+}
+
+async function importJSON(file) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const data = JSON.parse(String(e.target.result));
+      const st = data.state && typeof data.state === 'object' ? data.state : data;
+      if (!Array.isArray(st.transactions)) throw new Error('estructura inválida');
+      if (!confirm(`El backup contiene ${st.transactions.length} transacciones. Se AÑADIRÁN a tu cuenta en la nube (no se borra nada). ¿Continuar?`)) return;
+      setLoading(true);
+
+      const idMap = {};
+      const txRows = st.transactions.map(t => {
+        const nid = uuid();
+        idMap[t.id] = nid;
+        return { id: nid, date: t.date, type: t.type, amount: t.amount, description: t.description, category: t.category, source: t.source || 'manual' };
+      });
+      const invRows = (st.investments || []).map(i => ({ id: uuid(), concept: i.concept, amount: i.amount, date: i.date }));
+      const goalRows = (st.goals || []).map(g => ({ id: uuid(), name: g.name, target: g.target, saved: g.saved || 0 }));
+      const trRows = (st.transfers || []).map(t => ({ id: uuid(), date: t.date, amount: t.amount, note: t.note || '', tx_id: idMap[t.txId] || null }));
+
+      if (txRows.length) await dbInsert('transactions', txRows);
+      if (invRows.length) await dbInsert('initial_investment', invRows);
+      if (goalRows.length) await dbInsert('saving_goals', goalRows);
+      if (trRows.length) await dbInsert('backup_transfers', trRows);
+      await saveSettings({
+        cash_brought: +(st.cashBrought || 0),
+        commbank_balance: st.commbankBalance != null ? +st.commbankBalance : null,
+      });
+
+      await dbLoadAll();
+      if (state.commbankBalance != null) $('cbInput').value = state.commbankBalance.toFixed(2);
+      populateMonthYear();
+      renderAll();
+      toast('Backup importado a la nube correctamente.');
+    } catch (ex) {
+      dbErr(ex.message ? ex : new Error('El JSON no es un backup válido de AU Ledger.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function wipeAll() {
+  if (!confirm('¿Seguro? Se borran TODAS las transacciones, inversiones, metas y configuración de tu cuenta en Supabase. Exportá un backup antes si tenés dudas.')) return;
+  setLoading(true);
+  try {
+    await dbDelete('backup_transfers', 'user_id', currentUser.id);
+    await dbDelete('transactions', 'user_id', currentUser.id);
+    await dbDelete('initial_investment', 'user_id', currentUser.id);
+    await dbDelete('saving_goals', 'user_id', currentUser.id);
+    await dbDelete('app_settings', 'user_id', currentUser.id);
+    state = defaultState();
+    $('cbInput').value = '';
+    populateMonthYear();
+    renderAll();
+    toast('Datos borrados de la nube.');
+  } catch (e) {
+    dbErr(e);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* =====================================================
+   RENDER MAESTRO + EVENTOS
+===================================================== */
+function renderAll() {
+  renderRecon();
+  renderSetup();
+  renderDiario();
+  renderAnual();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('tab-active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('hidden', p.id !== `panel-${name}`));
+}
+
+async function initApp() {
+  if (!initSupabase()) {
+    $('configWarning').classList.remove('hidden');
+    $('authFormWrap').classList.add('hidden');
+    showAuth();
+    return;
+  }
+  try {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session && data.session.user) {
+      await onLogin(data.session.user);
+    } else {
+      showAuth();
+    }
+  } catch (e) {
+    showAuth('No se pudo conectar con Supabase: ' + e.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  populateMonthYear();
+  refreshTxCategorySelect();
+  $('txDate').value = todayISO();
+  $('invDate').value = todayISO();
+  $('trDate').value = todayISO();
+  switchTab('setup');
+  renderAll();
+  initApp();
+
+  /* --- Auth --- */
+  $('btnSignIn').addEventListener('click', doSignIn);
+  $('btnSignUp').addEventListener('click', doSignUp);
+  $('authPass').addEventListener('keydown', e => { if (e.key === 'Enter') doSignIn(); });
+  $('btnSignOut').addEventListener('click', doSignOut);
+
+  /* --- Tabs --- */
+  $('tabsNav').addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (btn) switchTab(btn.dataset.tab);
+  });
+
+  /* --- Conciliación --- */
+  $('cbSave').addEventListener('click', async () => {
+    const v = parseAmount($('cbInput').value);
+    if (!Number.isFinite(v)) { toast('Ingresá un saldo válido.', false); return; }
+    try {
+      await saveSettings({ commbank_balance: +v.toFixed(2), cash_brought: state.cashBrought });
+      state.commbankBalance = +v.toFixed(2);
+      renderRecon();
+    } catch (e) { dbErr(e); }
+  });
+  $('cbInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('cbSave').click(); });
+
+  /* --- Mantenimiento --- */
+  $('btnMaint').addEventListener('click', e => { e.stopPropagation(); $('maintMenu').classList.toggle('hidden'); });
+  document.addEventListener('click', () => $('maintMenu').classList.add('hidden'));
+  $('btnExport').addEventListener('click', exportJSON);
+  $('btnImportJson').addEventListener('click', () => $('importJsonFile').click());
+  $('importJsonFile').addEventListener('change', e => {
+    if (e.target.files[0]) importJSON(e.target.files[0]);
+    e.target.value = '';
+  });
+  $('btnWipe').addEventListener('click', wipeAll);
+
+  /* --- Tab 1: inversiones --- */
+  $('invForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const amount = parseAmount($('invAmount').value);
+    if (!Number.isFinite(amount) || amount <= 0) { toast('Monto inválido.', false); return; }
+    const row = { id: uuid(), concept: $('invConcept').value.trim(), amount: +amount.toFixed(2), date: $('invDate').value };
+    try {
+      await dbInsert('initial_investment', row);
+      state.investments.push(row);
+      e.target.reset();
+      $('invDate').value = todayISO();
+      renderSetup();
+      toast('Inversión registrada en la nube.');
+    } catch (ex) { dbErr(ex); }
+  });
+  $('cashBroughtSave').addEventListener('click', async () => {
+    const v = parseAmount($('cashBroughtInput').value);
+    if (!Number.isFinite(v) || v < 0) { toast('Monto inválido.', false); return; }
+    try {
+      await saveSettings({ cash_brought: +v.toFixed(2), commbank_balance: state.commbankBalance });
+      state.cashBrought = +v.toFixed(2);
+      renderSetup();
+      toast('Fondo de respaldo actualizado.');
+    } catch (e) { dbErr(e); }
+  });
+  $('transferForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const amount = parseAmount($('trAmount').value);
+    if (!Number.isFinite(amount) || amount <= 0) { toast('Monto inválido.', false); return; }
+    const date = $('trDate').value;
+    const note = $('trNote').value.trim();
+    const txId = uuid();
+    const txRow = {
+      id: txId, date, type: 'income', amount: +amount.toFixed(2),
+      description: note || 'Transferencia de fondo de respaldo', category: 'Fondos Traídos (Respaldo)', source: 'manual',
+    };
+    const trRow = { id: uuid(), date, amount: +amount.toFixed(2), note, tx_id: txId };
+    try {
+      await dbInsert('transactions', txRow);
+      await dbInsert('backup_transfers', trRow);
+      state.transactions.push({ ...txRow, createdAt: Date.now() });
+      state.transfers.push({ id: trRow.id, date, amount: trRow.amount, note, txId });
+      e.target.reset();
+      $('trDate').value = todayISO();
+      populateMonthYear();
+      renderAll();
+      toast('Respaldo movido a la cuenta local (ingreso creado en el Libro Diario).');
+    } catch (ex) { dbErr(ex); }
+  });
+
+  /* --- Delegación de clicks en Tab 1 --- */
+  $('panel-setup').addEventListener('click', async e => {
+    const delInv = e.target.closest('[data-del-inv]');
+    if (delInv) {
+      try {
+        await dbDelete('initial_investment', 'id', delInv.dataset.delInv);
+        state.investments = state.investments.filter(i => i.id !== delInv.dataset.delInv);
+        renderSetup();
+      } catch (ex) { dbErr(ex); }
+      return;
+    }
+    const delTr = e.target.closest('[data-del-tr]');
+    if (delTr) {
+      const tr = state.transfers.find(t => t.id === delTr.dataset.delTr);
+      if (!tr) return;
+      try {
+        await dbDelete('backup_transfers', 'id', tr.id);
+        if (tr.txId) await dbDelete('transactions', 'id', tr.txId);
+        state.transfers = state.transfers.filter(t => t.id !== tr.id);
+        state.transactions = state.transactions.filter(t => t.id !== tr.txId);
+        renderAll();
+        toast('Movimiento eliminado (y su ingreso vinculado).');
+      } catch (ex) { dbErr(ex); }
+    }
+  });
+
+  /* --- Tab 2: libro diario --- */
+  $('monthSel').addEventListener('change', renderDiario);
+  $('yearSel').addEventListener('change', renderDiario);
+  $('txType').addEventListener('change', refreshTxCategorySelect);
+  $('txForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const amount = parseAmount($('txAmount').value);
+    if (!Number.isFinite(amount) || amount <= 0) { toast('Monto inválido.', false); return; }
+    const row = {
+      id: uuid(), date: $('txDate').value, type: $('txType').value, amount: +amount.toFixed(2),
+      description: $('txDesc').value.trim(), category: $('txCategory').value, source: 'manual',
+    };
+    try {
+      await dbInsert('transactions', row);
+      state.transactions.push({ ...row, createdAt: Date.now() });
+      $('txAmount').value = ''; $('txDesc').value = '';
+      populateMonthYear();
+      renderAll();
+      toast('Transacción guardada en la nube.');
+    } catch (ex) { dbErr(ex); }
+  });
+
+  $('txTable').addEventListener('click', async e => {
+    const edit = e.target.closest('[data-edit-tx]');
+    if (edit) { editingTxId = edit.dataset.editTx; renderDiario(); return; }
+    const cancel = e.target.closest('[data-cancel-tx]');
+    if (cancel) { editingTxId = null; renderDiario(); return; }
+    const save = e.target.closest('[data-save-tx]');
+    if (save) {
+      const row = $('txTable').querySelector(`[data-edit-row="${save.dataset.saveTx}"]`);
+      const tx = state.transactions.find(t => t.id === save.dataset.saveTx);
+      if (row && tx) {
+        const amount = parseAmount(row.querySelector('.edit-amount').value);
+        const date = row.querySelector('.edit-date').value;
+        const desc = row.querySelector('.edit-desc').value.trim();
+        const category = row.querySelector('.edit-cat').value;
+        if (!Number.isFinite(amount) || amount <= 0 || !date || !desc) { toast('Revisá los campos de edición.', false); return; }
+        try {
+          await dbUpdate('transactions', tx.id, { amount: +amount.toFixed(2), date, description: desc, category });
+          tx.amount = +amount.toFixed(2);
+          tx.date = date;
+          tx.description = desc;
+          tx.category = category;
+        } catch (ex) { dbErr(ex); return; }
+      }
+      editingTxId = null;
+      populateMonthYear();
+      renderAll();
+      toast('Transacción actualizada.');
+      return;
+    }
+    const del = e.target.closest('[data-del-tx]');
+    if (del) {
+      if (!confirm('¿Eliminar esta transacción?')) return;
+      const id = del.dataset.delTx;
+      try {
+        await dbDelete('backup_transfers', 'tx_id', id);
+        await dbDelete('transactions', 'id', id);
+        state.transactions = state.transactions.filter(t => t.id !== id);
+        state.transfers = state.transfers.filter(t => t.txId !== id);
+        renderAll();
+        toast('Transacción eliminada.');
+      } catch (ex) { dbErr(ex); }
+    }
+  });
+
+  /* --- Tab 3: importador --- */
+  const dz = $('dropZone');
+  dz.addEventListener('click', () => $('csvFileInput').click());
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dz-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dz-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('dz-over');
+    handleCSVFile(e.dataTransfer.files[0]);
+  });
+  $('csvFileInput').addEventListener('change', e => handleCSVFile(e.target.files[0]));
+
+  $('stagingTable').addEventListener('change', e => {
+    const chk = e.target.closest('[data-stg-check]');
+    if (chk) {
+      const row = staging.find(r => r.sid === chk.dataset.stgCheck);
+      if (row) { row.include = chk.checked; renderStaging(); }
+      return;
+    }
+    const cat = e.target.closest('[data-stg-cat]');
+    if (cat) {
+      const row = staging.find(r => r.sid === cat.dataset.stgCat);
+      if (row) row.category = cat.value;
+    }
+  });
+  $('checkAll').addEventListener('change', e => {
+    staging.forEach(r => r.include = e.target.checked);
+    renderStaging();
+  });
+  $('bulkApply').addEventListener('click', () => {
+    const cat = $('bulkCat').value;
+    if (!cat) { toast('Elegí una categoría para aplicar.', false); return; }
+    let n = 0;
+    staging.forEach(r => {
+      if (!r.include) return;
+      const valid = r.type === 'income' ? ALL_INCOME_CATS : ALL_EXPENSE_CATS;
+      if (valid.includes(cat)) { r.category = cat; n++; }
+    });
+    renderStaging();
+    toast(n ? `Categoría aplicada a ${n} filas marcadas.` : 'La categoría elegida no aplica al tipo de las filas marcadas.', !!n);
+  });
+  $('btnConfirmImport').addEventListener('click', confirmImport);
+
+  /* --- Tab 4: anual & metas --- */
+  $('annYearSel').addEventListener('change', renderAnual);
+  $('goalForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const target = parseAmount($('goalTarget').value);
+    if (!Number.isFinite(target) || target <= 0) { toast('Objetivo inválido.', false); return; }
+    const row = { id: uuid(), name: $('goalName').value.trim(), target: +target.toFixed(2), saved: 0 };
+    try {
+      await dbInsert('saving_goals', row);
+      state.goals.push(row);
+      e.target.reset();
+      renderAnual();
+      toast('Meta creada en la nube.');
+    } catch (ex) { dbErr(ex); }
+  });
+  $('goalsGrid').addEventListener('click', async e => {
+    const del = e.target.closest('[data-del-goal]');
+    if (del) {
+      try {
+        await dbDelete('saving_goals', 'id', del.dataset.delGoal);
+        state.goals = state.goals.filter(g => g.id !== del.dataset.delGoal);
+        renderAnual();
+      } catch (ex) { dbErr(ex); }
+      return;
+    }
+    const add = e.target.closest('[data-goal-add]');
+    if (add) {
+      const input = $('goalsGrid').querySelector(`[data-goal-add-input="${add.dataset.goalAdd}"]`);
+      const v = parseAmount(input.value);
+      if (!Number.isFinite(v) || v <= 0) { toast('Monto inválido.', false); return; }
+      const g = state.goals.find(x => x.id === add.dataset.goalAdd);
+      if (!g) return;
+      const newSaved = +(g.saved + v).toFixed(2);
+      try {
+        await dbUpdate('saving_goals', g.id, { saved: newSaved });
+        g.saved = newSaved;
+        renderAnual();
+        toast('Fondos sumados a la meta.');
+      } catch (ex) { dbErr(ex); }
+    }
+  });
+});
+</script>
+
+<!-- ============================================================
+SQL PARA SUPABASE  (copialo TODO y pegalo en SQL Editor > Run)
+Nota: uso comentarios /* */ porque los guiones dobles rompen
+los comentarios HTML.
+===============================================================
+
+/* 1. Libro diario: transacciones manuales + importaciones CSV */
+create table public.transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  date date not null,
+  type text not null check (type in ('income','expense')),
+  amount numeric(12,2) not null check (amount > 0),
+  description text not null,
+  category text not null,
+  source text not null default 'manual'
+);
+
+/* 2. Inversion inicial de desembarco (visas, vuelos, OSHC, bond) */
+create table public.initial_investment (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  concept text not null,
+  amount numeric(12,2) not null check (amount > 0),
+  date date not null
+);
+
+/* 3. Metas de ahorro */
+create table public.saving_goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  name text not null,
+  target numeric(12,2) not null check (target > 0),
+  saved numeric(12,2) not null default 0
+);
+
+/* 4. Movimientos del cash de respaldo hacia la cuenta local.
+   tx_id apunta al ingreso "Fondos Traidos" creado en transactions. */
+create table public.backup_transfers (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  date date not null,
+  amount numeric(12,2) not null check (amount > 0),
+  note text,
+  tx_id uuid references public.transactions(id) on delete cascade
+);
+
+/* 5. Configuracion por usuario: cash traido y saldo de conciliacion */
+create table public.app_settings (
+  user_id uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  cash_brought numeric(12,2) not null default 0,
+  commbank_balance numeric(12,2),
+  updated_at timestamptz not null default now()
+);
+
+/* Row Level Security: cada usuario ve y toca SOLO sus filas */
+alter table public.transactions enable row level security;
+alter table public.initial_investment enable row level security;
+alter table public.saving_goals enable row level security;
+alter table public.backup_transfers enable row level security;
+alter table public.app_settings enable row level security;
+
+create policy "own rows" on public.transactions
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on public.initial_investment
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on public.saving_goals
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on public.backup_transfers
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on public.app_settings
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+============================================================
+EXTRA: si queres entrar sin confirmar email, anda a
+Authentication > Providers > Email y desactiva
+"Confirm email". Si lo dejas activo, crea la cuenta,
+confirma desde tu correo y recien despues inicia sesion.
+============================================================ -->
+
+</body>
+</html>
